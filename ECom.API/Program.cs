@@ -1,4 +1,5 @@
 using ECom.Infrasructure;
+using Microsoft.Extensions.DependencyInjection;
 namespace ECom.API
 {
     public class Program
@@ -16,6 +17,8 @@ namespace ECom.API
 
             //
             builder.Services.InfrastructureConfiguration(builder.Configuration);
+
+            builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 
             var app = builder.Build();

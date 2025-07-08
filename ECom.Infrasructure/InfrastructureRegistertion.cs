@@ -10,6 +10,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ECom.Infrasructure.Repositories;
+using ECom.Core.Services;
+using ECom.Infrasructure.Service;
+using Microsoft.Extensions.FileProviders;
 
 
 namespace ECom.Infrasructure
@@ -25,6 +28,8 @@ namespace ECom.Infrasructure
 
             // Apply Unit Of Work
             services.AddScoped<IUnitOfWork, UintOfWork>();
+            services.AddSingleton<IImageManagementService, ImageManagementService>();
+            services.AddSingleton<IFileProvider>(new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")));
             // Apply DbContext
             services.AddDbContext<AppDbContext>(op =>
             {
