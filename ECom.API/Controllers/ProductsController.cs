@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using ECom.API.Helper;
 using ECom.Core.DTO;
+using ECom.Core.Entites.Product;
 using ECom.Core.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -75,6 +76,23 @@ namespace ECom.API.Controllers
             {
 
                 return BadRequest(new ResponseAPI(400, ex.Message));
+            }
+        }
+
+        [HttpDelete("Delete")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var product = await work.ProductRepository
+                    .GetByIdAsync(id, x => x.Photos, x => x.Category);
+                await work.ProductRepository.DeleteAsync(product);
+                return Ok(new ResponseAPI(200));
+            }
+            catch (Exception ex)
+            {
+
+                return BadRequest(new ResponseAPI( 400, ex.Message ));
             }
         }
     }

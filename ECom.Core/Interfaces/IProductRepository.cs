@@ -12,6 +12,7 @@ namespace ECom.Core.Interfaces
     {
         Task<bool> AddAsync(AddProductDTO productDTO);
         Task<bool> UpdateAsync(UpdateProductDTO productDTO);
+        Task DeleteAsync(Product product);
 
     }
 }

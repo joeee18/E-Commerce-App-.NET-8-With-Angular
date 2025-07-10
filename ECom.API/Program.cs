@@ -1,3 +1,4 @@
+using ECom.API.Middleware;
 using ECom.Infrasructure;
 using Microsoft.Extensions.DependencyInjection;
 namespace ECom.API
@@ -10,6 +11,7 @@ namespace ECom.API
 
             // Add services to the container.
 
+            builder.Services.AddMemoryCache();
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
@@ -29,6 +31,10 @@ namespace ECom.API
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+
+            app.UseMiddleware<ExceptionsMiddleware>();
+
+            app.UseStatusCodePagesWithReExecute("/errors/{0}");
 
             app.UseHttpsRedirection();
 
