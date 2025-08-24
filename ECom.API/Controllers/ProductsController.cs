@@ -3,6 +3,7 @@ using ECom.API.Helper;
 using ECom.Core.DTO;
 using ECom.Core.Entites.Product;
 using ECom.Core.Interfaces;
+using ECom.Core.Sharing;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,15 +17,14 @@ namespace ECom.API.Controllers
         }
 
         [HttpGet("get-all-products")]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> Get([FromQuery] ProductParams productParams)
         {
-            var products = await work.ProductRepository.GetAllAsync(x=>x.Photos,x=>x.Category);
-            var Result = mapper.Map<List<ProductDTO>>(products);
             try
             {
-                if(products is null)
-                    return Ok(new ResponseAPI(400, "No Products"));
-                return Ok(Result);
+                var products = await work.ProductRepository.GetAllAsync(productParams);
+                // var TotalCount = await work.ProductRepository.CountAsync();
+
+                return Ok(new Pagination<ProductDTO>(productParams.PageNumber, productParams.PageSize, products.TotalCount, products.Products));
             }
             catch (Exception ex)
             {
@@ -32,13 +32,14 @@ namespace ECom.API.Controllers
                 return BadRequest(new { ex.Message });
             }
         }
-        [HttpGet("get-by-Id")]
+        [HttpGet("get-by-Id/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
             var products = await work.ProductRepository.GetByIdAsync(id ,x => x.Photos, x => x.Category);
-            var Result = mapper.Map<ProductDTO>(products);
+                var Result = mapper.Map<ProductDTO>(products);
             try
             {
+                
                 if (products is null)
                     return Ok(new ResponseAPI(400, "No Products"));
                 return Ok(Result);

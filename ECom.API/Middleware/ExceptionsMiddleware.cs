@@ -12,15 +12,17 @@ namespace ECom.API.Middleware
         private readonly RequestDelegate _next;
         private readonly IHostEnvironment _environment;
         private readonly IMemoryCache _memoryCache;
-        private readonly TimeSpan _rateLimitWindow=TimeSpan.FromSeconds(30);
+        private readonly TimeSpan _rateLimitWindow = TimeSpan.FromSeconds(10);  
 
 
-        public ExceptionsMiddleware(RequestDelegate next, IMemoryCache memoryCache)
+        public ExceptionsMiddleware(RequestDelegate next, IHostEnvironment environment, IMemoryCache memoryCache)
         {
             _next = next;
+            _environment = environment; // Initialize the environment field
             _memoryCache = memoryCache;
         }
-        public async Task Invoke(HttpContext context)
+
+        public async Task InvokeAsync(HttpContext context)
         {
             try
             {
@@ -29,33 +31,32 @@ namespace ECom.API.Middleware
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
                     context.Response.ContentType = "application/json";
-                    var response = new ApiExceptions
-                    (
-                        (int)HttpStatusCode.TooManyRequests,
-                        "Too Many Requests, please try again later.",
-                        $"Retry after {_rateLimitWindow.TotalSeconds} seconds."
-
-                    );
+                    var response = new ApiExceptions((int)HttpStatusCode.TooManyRequests, "Rate limit exceeded. Please try again later.");
                     await context.Response.WriteAsJsonAsync(response);
+
+
+                    //var json = JsonSerializer.Serialize(response);
+                    //await context.Response.WriteAsync(json);
+                    //return;
                 }
+
                 await _next(context);
             }
             catch (Exception ex)
             {
-
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 context.Response.ContentType = "application/json";
-                var response = _environment.IsDevelopment() ? new ApiExceptions
-                (
-                    (int)HttpStatusCode.InternalServerError,
-                    ex.Message,
-                    ex.StackTrace
-                ) 
-                : new ApiExceptions
-                (
-                    (int)HttpStatusCode.InternalServerError,
-                    ex.Message
-                    );
+
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                {
+                    errorMessage += " | Inner: " + ex.InnerException.Message;
+                }
+
+                var response = _environment.IsDevelopment()?
+                    new ApiExceptions((int)HttpStatusCode.InternalServerError, errorMessage, ex.StackTrace):
+                    new ApiExceptions((int)HttpStatusCode.InternalServerError, errorMessage);
+
                 var json = JsonSerializer.Serialize(response);
                 await context.Response.WriteAsync(json);
             }
@@ -63,29 +64,29 @@ namespace ECom.API.Middleware
 
         private bool IsRequestedAllowed(HttpContext context)
         {
-            var ip = context.Connection.RemoteIpAddress.ToString();
-            var cacheKey = $"Rate{ip}";
+            var ip = context.Connection.RemoteIpAddress?.ToString();
+            var cacheKey = $"Rate:{ip}";
             var dateNow = DateTime.Now;
-            var (timesStamp, count) = _memoryCache.GetOrCreate(cacheKey, entry => 
+            var (timesTamp, count) = _memoryCache.GetOrCreate(cacheKey, entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = _rateLimitWindow;
                 return (TimesTamp: dateNow, count: 0);
             });
-            if (dateNow - timesStamp < _rateLimitWindow)
+            if (dateNow - timesTamp < _rateLimitWindow)
             {
                 if (count >= 8)
                 {
                     return false;
                 }
-                _memoryCache.Set(cacheKey, value: (timesStamp, count + 1), _rateLimitWindow);
+                _memoryCache.Set(cacheKey, (timesTamp, count += 1), _rateLimitWindow);
             }
             else
             {
-                _memoryCache.Set(cacheKey, value: (timesStamp, count), _rateLimitWindow);
+                _memoryCache.Set(cacheKey, (dateNow, count), _rateLimitWindow);
             }
             return true;
-
         }
+
         private void ApplySecurity(HttpContext context)
         {
             context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
